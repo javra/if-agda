@@ -2,7 +2,7 @@
 
 module IF where
 
-open import Lib hiding (id; _∘_)
+open import Lib hiding (id; _∘_; _,_)
 
 infixl 3 _▶c_ _▶P_
 infixr 5 _$S_ _⇒P_
@@ -25,6 +25,7 @@ data Var : SCon → TyS → Set₁ where
 data Tm (Γc : SCon) : TyS → Set₁ where
   var  : ∀{A} → Var Γc A → Tm Γc A
   _$S_ : ∀{T B} → Tm Γc (Π̂S T B) → (τ : T) → Tm Γc (B τ)
+  Π∞   : (T : Set) → (T → Tm Γc U) → Tm Γc U
 
 data TyP (Γc : SCon) : Set₁ where
   El   : Tm Γc U → TyP Γc
@@ -34,12 +35,13 @@ data TyP (Γc : SCon) : Set₁ where
 data Con (Γc : SCon) : Set₁ where
   ∙    : Con Γc
   _▶P_ : Con Γc → TyP Γc → Con Γc
-
+{-
 -- No terms in the empty context
 Tm∙c : ∀{B} → Tm ∙c B → ⊥
 Tm∙c (var ())
 Tm∙c (t $S α) = Tm∙c t
-
+Tm∙c (Π∞ T f) = Tm∙c (f {!!}) -- TODO maybe switch to pointed codomains?
+-}
 -- Non dependent, recursive functions
 _⇒̂S_ : Set → TyS → TyS
 T ⇒̂S A = Π̂S T (λ _ → A)
@@ -54,6 +56,7 @@ vz = var vvz
 vs : ∀{Γc}{A}{B} → Tm Γc A → Tm (Γc ▶c B) A
 vs (var x)  = var (vvs x)
 vs (t $S α) = vs t $S α
+vs (Π∞ T f) = Π∞ T λ τ → vs (f τ)
 
 -- Substitution calculus
 data Sub : SCon → SCon → Set₁ where
@@ -64,6 +67,7 @@ _[_]t : ∀{Γc Δc B} → Tm Δc B → Sub Γc Δc → Tm Γc B
 var vvz      [ δ , t ]t = t
 var (vvs a)  [ δ , t ]t = var a [ δ ]t
 (a $S α)     [ δ ]t     = (a [ δ ]t) $S α
+(Π∞ T f)     [ δ ]t     = Π∞ T λ τ → f τ [ δ ]t
 
 _[_]T : ∀{Γc Δc} → TyP Δc → Sub Γc Δc → TyP Γc
 Π̂P T u   [ δ ]T = Π̂P T (λ α → u α [ δ ]T)
@@ -78,6 +82,7 @@ vs[,]t : ∀{Γc Δc A B}(s : Tm Δc A)(t : Tm Γc B)(δ : Sub Γc Δc) → (vs 
 vs[,]t (var vvz) t δ     = refl
 vs[,]t (var (vvs x)) t δ = refl
 vs[,]t (s $S α) t δ      = happly2 _$S_ (vs[,]t s t δ) α
+vs[,]t (Π∞ T f) t δ      = Π∞ T & ext λ τ → vs[,]t (f τ) t δ
 {-# REWRITE vs[,]t #-}
 
 _∘_ : ∀{Γc}{Δc}{Ωc} → Sub Ωc Δc → Sub Γc Ωc → Sub Γc Δc
@@ -92,6 +97,7 @@ wkβ : ∀{Γc Δc Ωc B}{δc : Sub Γc Δc}{γc : Sub Ωc Γc}{t : Tm Ωc B} �
 wkβ {δc = ε}                    = refl
 wkβ {δc = δc , var x}{γc}       = (λ δc₁ → δc₁ , (var x [ γc ]t)) & wkβ
 wkβ {δc = δc , (x $S α)}{γc}{t} = _,_ (wk δc ∘ (γc , _)) & vs[,]t (x $S α) t γc ◾ (λ δc₁ → δc₁ , ((x [ γc ]t) $S α)) & wkβ
+wkβ {δc = δc , (Π∞ T f)}{γc}{t} = happly (_,_ & wkβ) _
 {-# REWRITE wkβ #-}
 
 id : ∀{Γ} → Sub Γ Γ
@@ -129,12 +135,14 @@ id^ = refl
 [wk]t (δ , x) (var vvz)      = refl
 [wk]t (δ , x) (var (vvs t))  = [wk]t δ (var t)
 [wk]t δ       (t $S α)       = happly2 _$S_ ([wk]t δ t) _
+[wk]t δ       (Π∞ T f)       = Π∞ T & ext λ τ → [wk]t δ (f τ)
 {-# REWRITE [wk]t #-}
 
 [id]t : ∀{Γ}{B} → (t : Tm Γ B) → t [ id ]t ≡ t
 [id]t (var vvz)     = refl
 [id]t (var (vvs t)) = vs & [id]t (var t)
 [id]t (t $S α)      = happly2 _$S_ ([id]t t) _
+[id]t (Π∞ T f)      = Π∞ T & ext λ τ → [id]t (f τ)
 {-# REWRITE [id]t #-}
 
 [id]T : ∀{Γ} → (A : TyP Γ) → A [ id ]T ≡ A
@@ -153,6 +161,7 @@ idr (δ , x) = _,_ & idr δ ⊗ [id]t x
 [][]t (var vvz)     δ (γ , x) = refl
 [][]t (var (vvs t)) δ (γ , x) = [][]t (var t) δ γ
 [][]t (t $S α)      δ (γ , x) = happly2 _$S_ ([][]t t δ (γ , x)) _
+[][]t (Π∞ T f)      δ γ = Π∞ T & ext λ τ → [][]t (f τ) δ γ
 {-# REWRITE [][]t #-}
 
 [][]T : ∀{Γ Δ Ω} → (A : TyP Ω) (δ : Sub Γ Δ)(γ : Sub Δ Ω) → A [ γ ]T [ δ ]T ≡ A [ γ ∘ δ ]T
@@ -195,6 +204,7 @@ data TmP {Γc}(Γ : Con Γc) : TyP Γc → Set₁ where
   varP : ∀{A} → VarP Γ A → TmP Γ A
   _$P_ : ∀{a A} → TmP Γ (a ⇒P A) → TmP Γ (El a) → TmP Γ A
   _$̂P_ : ∀{T A} → TmP Γ (Π̂P T A) → (τ : T) → TmP Γ (A τ)
+  _$∞_ : ∀{T f} → TmP Γ (El (Π∞ T f)) → (τ : T) → TmP Γ (El (f τ))
 
 data SubP {Γc} : Con Γc → Con Γc → Set₁ where
   εP   : ∀{Γ} → SubP Γ ∙
@@ -207,6 +217,7 @@ vsP : ∀{Γc Γ A A'} → TmP {Γc} Γ A → TmP (Γ ▶P A') A
 vsP (varP x) = varP (vvsP x)
 vsP (f $P t) = vsP f $P vsP t
 vsP (f $̂P τ) = vsP f $̂P τ
+vsP (f $∞ τ) = vsP f $∞ τ
 
 wkP : ∀{Γc}{Γ Δ : Con Γc}{A} → SubP Γ Δ → SubP (Γ ▶P A) Δ
 wkP εP        = εP
@@ -231,12 +242,15 @@ varP vvzP     [ σP ,P tP ]tP = tP
 varP (vvsP v) [ σP ,P tP ]tP = varP v [ σP ]tP
 (tP $P sP)    [ σP ]tP       = (tP [ σP ]tP) $P (sP [ σP ]tP)
 (tP $̂P τ)     [ σP ]tP       = (tP [ σP ]tP) $̂P τ
+(fP $∞ τ)     [ σP ]tP       = (fP [ σP ]tP) $∞ τ
+
 
 -- no point terms in the empty point context
 TmP∙ : ∀{Γc A} → TmP {Γc} ∙ A → ⊥
 TmP∙ (varP ())
 TmP∙ (tP $P sP) = TmP∙ tP
 TmP∙ (tP $̂P τ)  = TmP∙ tP
+TmP∙ (tP $∞ τ)  = TmP∙ tP
 
 [wkP]tP : ∀{Γc}{Γ Δ : Con Γc}{A A'}(σP : SubP Γ Δ)(tP : TmP Δ A)
             → tP [ wkP {A = A'} σP ]tP ≡ vsP (tP [ σP ]tP)
@@ -246,6 +260,7 @@ TmP∙ (tP $̂P τ)  = TmP∙ tP
 [wkP]tP (σP ,P _)  (tP $P sP)      = happly2 _$P_ ([wkP]tP _ tP) _
                                      ◾ (_$P_ (vsP (tP [ _ ]tP))) & [wkP]tP _ sP
 [wkP]tP (σP ,P _)  (tP $̂P τ)       = happly2 _$̂P_ ([wkP]tP _ tP) τ
+[wkP]tP (σP ,P _)  (fP $∞ τ)       = happly2 _$∞_ ([wkP]tP _ fP) τ
 {-# REWRITE [wkP]tP #-}
 
 [idP]tP : ∀{Γc}{Γ : Con Γc}{A}{tP : TmP Γ A} → tP [ idP ]tP ≡ tP
@@ -254,7 +269,9 @@ TmP∙ (tP $̂P τ)  = TmP∙ tP
 [idP]tP {tP = tP $P sP}      = happly2 _$P_ ([idP]tP {tP = tP}) _
                                ◾ _$P_ tP & [idP]tP
 [idP]tP {tP = tP $̂P τ}       = happly2 _$̂P_ [idP]tP τ
+[idP]tP {tP = fP $∞ τ}       = happly2 _$∞_ [idP]tP τ
 {-# REWRITE [idP]tP #-}
 
 
 --TODO complete calculus here
+

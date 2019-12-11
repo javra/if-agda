@@ -16,6 +16,7 @@ _ᵃt : ∀{ℓ Γc B} → Tm Γc B → _ᵃc {ℓ} Γc → _ᵃS {ℓ} B
 (var vvz ᵃt)     (γ , α) = α
 (var (vvs t) ᵃt) (γ , α) = (var t ᵃt) γ
 ((t $S α) ᵃt)    γ       = (t ᵃt) γ α
+(Π∞ T f ᵃt)      γ       = (τ : T) → (f τ ᵃt) γ
 
 _ᵃP : ∀{ℓ Γc} → TyP Γc → _ᵃc {ℓ} Γc → Set ℓ
 (El a ᵃP)     γ = (a ᵃt) γ
@@ -35,6 +36,7 @@ _ᵃs : ∀{ℓ}{Γc Δc} → Sub Γc Δc → _ᵃc {ℓ} Γc → _ᵃc {ℓ} Δ
 []tᵃ {t = var vvz}    {σ , x} γc = refl
 []tᵃ {t = var (vvs a)}{σ , x} γc = []tᵃ {t = var a} γc
 []tᵃ {t = t $S α}     {σ}     γc = happly ([]tᵃ {t = t} γc) α
+[]tᵃ {t = Π∞ T f}     {σ}     γc = Π≡ refl λ τ → []tᵃ {t = f τ} γc
 {-# REWRITE []tᵃ #-}
 
 []Tᵃ : ∀{ℓ Γc Δc A}{σ : Sub Γc Δc} → (γc : _ᵃc {ℓ} Γc) → ((A [ σ ]T) ᵃP) γc ≡ (A ᵃP) ((σ ᵃs) γc)
@@ -51,6 +53,7 @@ _ᵃs : ∀{ℓ}{Γc Δc} → Sub Γc Δc → _ᵃc {ℓ} Γc → _ᵃc {ℓ} Δ
 vs,ᵃ : ∀{ℓ Γc B B'}{x : Tm Γc B}{γc}{α : _ᵃS {ℓ} B'} → (vs x ᵃt) (γc , α) ≡ (x ᵃt) γc
 vs,ᵃ {x = var x}  = refl
 vs,ᵃ {x = x $S α} = happly (vs,ᵃ {x = x}) α
+vs,ᵃ {x = Π∞ T f} = Π≡ refl λ τ → vs,ᵃ {x = f τ}
 {-# REWRITE vs,ᵃ #-}
 
 wk,ᵃ : ∀{ℓ Γc Δc B γc}{α : B ᵃS}{σ : Sub Γc Δc} → _ᵃs {ℓ} (wk {B = B} σ) (γc , α) ≡ (σ ᵃs) γc
@@ -75,19 +78,13 @@ idᵃ {ℓ}{Γc ▶c x} (γc , α) = ,≡ (idᵃ γc) refl
 π₂ᵃ : ∀{ℓ Γc Δc A}{σ : Sub Γc (Δc ▶c A)}{γc} → _ᵃt {ℓ} (π₂ σ) γc ≡ ₂ ((σ ᵃs) γc)
 π₂ᵃ {σ = σ , x} = refl
 {-# REWRITE π₂ᵃ #-}
-{-
-Twkᵃ : ∀{ℓ Γc}{B A γc T} → _ᵃP {ℓ} (Twk {Γc = Γc}{B = B} A) (γc , T) ≡ _ᵃP A γc
-Twkᵃ {A = El x}   = refl
-Twkᵃ {A = Π̂P T B} = Π≡ refl λ τ → Twkᵃ {A = B τ}
-Twkᵃ {A = a ⇒P A} = Π≡ refl λ α → Twkᵃ {A = A}
-{-# REWRITE Twkᵃ #-}
--}
 
 _ᵃtP : ∀{ℓ Γc}{Γ : Con Γc}{A}(tP : TmP Γ A){γc}(γ : _ᵃC {ℓ} Γ γc) → _ᵃP {ℓ} A γc
 (varP vvzP ᵃtP)     (γ , α) = α
 (varP (vvsP x) ᵃtP) (γ , α) = (varP x ᵃtP) γ
 ((tP $P sP) ᵃtP)    γ       = (tP ᵃtP) γ ((sP ᵃtP) γ)
-((tP $̂P τ) ᵃtP)     γ       = (tP ᵃtP) γ τ    
+((tP $̂P τ) ᵃtP)     γ       = (tP ᵃtP) γ τ
+((fP $∞ τ) ᵃtP)     γ       = (fP ᵃtP) γ τ
 
 _ᵃsP : ∀{ℓ Γc}{Γ Δ : Con Γc}(σP : SubP Γ Δ){γc}
          → _ᵃC {ℓ} Γ γc → _ᵃC {ℓ} Δ γc
@@ -101,6 +98,7 @@ _ᵃsP : ∀{ℓ Γc}{Γ Δ : Con Γc}(σP : SubP Γ Δ){γc}
 []ᵃtP {tP = tP $P sP}      {σP} γ       = []ᵃtP {tP = tP} {σP} γ
                                           ⊗ []ᵃtP {tP = sP} γ
 []ᵃtP {tP = tP $̂P τ} γ                  = happly ([]ᵃtP {tP = tP} γ) τ
+[]ᵃtP {tP = fP $∞ τ} γ                  = happly ([]ᵃtP {tP = fP} γ) τ
 {-# REWRITE []ᵃtP #-}
 
 vsP,ᵃ : ∀{ℓ Γc}{Γ : Con Γc}{A A'}{tP : TmP Γ A}{γc}{γ : (Γ ᵃC) γc}{α : _ᵃP {ℓ} A' γc}
@@ -108,6 +106,7 @@ vsP,ᵃ : ∀{ℓ Γc}{Γ : Con Γc}{A A'}{tP : TmP Γ A}{γc}{γ : (Γ ᵃC) γ
 vsP,ᵃ {tP = varP x}   = refl
 vsP,ᵃ {tP = tP $P sP} = vsP,ᵃ {tP = tP} ⊗ vsP,ᵃ {tP = sP}
 vsP,ᵃ {tP = tP $̂P τ}  = happly (vsP,ᵃ {tP = tP}) τ
+vsP,ᵃ {tP = fP $∞ τ}  = happly (vsP,ᵃ {tP = fP}) τ
 {-# REWRITE vsP,ᵃ #-}
 
 wkP,ᵃ : ∀{ℓ Γc}{Γ Δ : Con Γc}{A}(σP : SubP Γ Δ){γc}{γ : (Γ ᵃC) γc}
@@ -120,10 +119,12 @@ idPᵃ : ∀{ℓ Γc}{Γ : Con Γc}{γc}(γ : _ᵃC {ℓ} Γ γc) → (idP {Γ =
 idPᵃ {Γ = ∙}      (lift tt) = refl
 idPᵃ {Γ = Γ ▶P A} (γ , α)   = ,≡ (idPᵃ {Γ = Γ} γ) refl
 {-# REWRITE idPᵃ #-}
-
+{-
 {-∘Pᵃ : ∀{ℓ Γc Δc Σc}{Γ : Con Γc}{Δ : Con Δc}{Σ : Con Σc}
       {σ}{σP : SubP σ Δ Σ}{δ}{δP : SubP δ Γ Δ}{γc}{γ : _ᵃC {ℓ} Γ γc}
       → (σP ∘P δP ᵃsP) γ ≡ (σP ᵃsP) ((δP ᵃsP) γ)
 ∘Pᵃ = ?-}
 
 --TODO define ∘Pᵃ, π₁Pᵃ, π₂Pᵃ
+-}
+
