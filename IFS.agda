@@ -18,6 +18,7 @@ open import IFD
 ˢt (var vvz)     (γcˢ , αcˢ) = αcˢ
 ˢt (var (vvs t)) (γcˢ , αcˢ) = ˢt (var t) γcˢ
 ˢt (f $S τ)      γcˢ         = ˢt f γcˢ τ
+ˢt (Π∞ T f)      γcˢ         = λ π τ → ˢt (f τ) γcˢ (π τ)
 
 ˢP : ∀{ℓ' ℓ Γc} A {γc}{γcᵈ : ᵈc {ℓ'}{ℓ} Γc γc}(γcˢ : ˢc Γc γcᵈ){α} → ᵈP A γcᵈ α → Set (ℓ' ⊔ ℓ)
 ˢP (El a)        γcˢ {α} αᵈ = ˢt a γcˢ α ≡ αᵈ

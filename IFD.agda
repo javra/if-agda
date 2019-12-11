@@ -17,6 +17,7 @@ open import IFA
 ᵈt (var vvz)     (γcᵈ , αᵈ) = αᵈ
 ᵈt (var (vvs t)) (γcᵈ , αᵈ) = ᵈt (var t) γcᵈ
 ᵈt (t $S α)      γcᵈ        = ᵈt t γcᵈ α
+ᵈt (Π∞ T f)      γcᵈ        = λ π → (τ : T) → ᵈt (f τ) γcᵈ (π τ)
 
 ᵈP : ∀{ℓ' ℓ Γc}(A : TyP Γc){γc : _ᵃc {ℓ} Γc}(γcᵈ : ᵈc {ℓ'} Γc γc)(α : (A ᵃP) γc) → Set (ℓ' ⊔ ℓ)
 ᵈP {ℓ'}{ℓ} (El a)   γcᵈ α =  ᵈt a γcᵈ α
@@ -36,6 +37,7 @@ open import IFA
 []tᵈ (var vvz)     {σ , t} = refl
 []tᵈ (var (vvs a)) {σ , t} = []tᵈ (var a)
 []tᵈ (a $S α)      {σ}     = happly ([]tᵈ a {σ = σ}) α
+[]tᵈ (Π∞ T f)      {σ}     = ext λ π → Π≡ refl λ τ → happly ([]tᵈ (f τ) {σ}) (π τ)
 {-# REWRITE []tᵈ #-}
 
 []Tᵈ : ∀{ℓ' ℓ Γc Δc A}{σ : Sub Γc Δc}{γc}{γcᵈ : ᵈc {ℓ'}{ℓ} Γc γc}(α : _)
@@ -55,6 +57,7 @@ vs,ᵈ : ∀{ℓ' ℓ Γc B B'}{x : Tm Γc B}{γc}{γcᵈ : ᵈc {ℓ'}{ℓ} Γc
          → ᵈt (vs x) (γcᵈ , αᵈ) ≡ ᵈt x γcᵈ
 vs,ᵈ {x = var x}  = refl
 vs,ᵈ {x = x $S α} = happly (vs,ᵈ {x = x}) α
+vs,ᵈ {x = Π∞ T f} = ext λ π → Π≡ refl λ τ → happly (vs,ᵈ {x = f τ}) (π τ)
 {-# REWRITE vs,ᵈ #-}
 
 wk,ᵈ : ∀{ℓ' ℓ Γc Δc B}{σ : Sub Γc Δc}{γc}{γcᵈ : ᵈc {ℓ'}{ℓ} Γc γc}{α αᵈ}
@@ -89,6 +92,7 @@ idᵈ {Γc = Γc ▶c x} = ,≡ idᵈ refl
 ᵈtP (varP (vvsP x)) (γᵈ , αᵈ) = ᵈtP (varP x) γᵈ
 ᵈtP (tP $P sP)      γᵈ        = ᵈtP tP γᵈ ((sP ᵃtP) _) (ᵈtP sP γᵈ)
 ᵈtP (tP $̂P τ)       γᵈ        = ᵈtP tP γᵈ τ
+ᵈtP (fP $∞ τ)       γᵈ        = ᵈtP fP γᵈ τ
 
 ᵈsP : ∀{ℓ' ℓ Γc}{Γ Δ : Con Γc}(σP : SubP Γ Δ){γc}{γcᵈ : ᵈc Γc γc}{γ}
        → ᵈC {ℓ'}{ℓ} Γ γcᵈ γ → ᵈC {ℓ'}{ℓ} Δ γcᵈ ((σP ᵃsP) γ)
@@ -98,12 +102,13 @@ idᵈ {Γc = Γc ▶c x} = ,≡ idᵈ refl
 []ᵈtP : ∀{ℓ' ℓ Γc}{Γ Δ : Con Γc}{σP : SubP Γ Δ}
          {A}{tP : TmP Δ A}{γc}{γcᵈ : ᵈc Γc γc}{γ}{γᵈ : ᵈC {ℓ'}{ℓ} Γ γcᵈ γ}
         → ᵈtP  (tP [ σP ]tP) γᵈ ≡ ᵈtP tP (ᵈsP σP γᵈ)
-[]ᵈtP {σP = εP}       {tP = varP ()}
-[]ᵈtP {σP = σP ,P sP} {tP = varP vvzP} = refl
-[]ᵈtP {σP = σP ,P sP} {tP = varP (vvsP x)} = []ᵈtP {σP = σP} {tP = varP x}
-[]ᵈtP {σP = σP} {tP = tP $P sP} {γ = γ} = happly ([]ᵈtP {tP = tP}) ((sP ᵃtP) ((σP ᵃsP) γ))
-                                          ⊗ []ᵈtP {tP = sP}
-[]ᵈtP {σP = σP} {tP = tP $̂P τ} = happly ([]ᵈtP {σP = σP} {tP = tP}) τ
+[]ᵈtP {σP = εP}      {tP = varP ()}
+[]ᵈtP {σP = σP ,P sP}{tP = varP vvzP}       = refl
+[]ᵈtP {σP = σP ,P sP}{tP = varP (vvsP x)}   = []ᵈtP {σP = σP} {tP = varP x}
+[]ᵈtP {σP = σP}{tP = tP $P sP}{γ = γ} = happly ([]ᵈtP {σP = σP}{tP = tP}) ((sP ᵃtP) (((σP) ᵃsP) γ))
+                                              ⊗ []ᵈtP {σP = σP}{tP = sP}
+[]ᵈtP {σP = σP}{tP = tP $̂P τ}         = happly ([]ᵈtP {σP = σP}{tP = tP}) τ
+[]ᵈtP {σP = σP}{tP = fP $∞ τ}         = happly ([]ᵈtP {σP = σP}{tP = fP}) τ
 {-# REWRITE []ᵈtP #-}
 
 vsP,ᵈ : ∀{ℓ' ℓ Γc}{Γ : Con Γc}{A A'}
@@ -112,6 +117,7 @@ vsP,ᵈ : ∀{ℓ' ℓ Γc}{Γ : Con Γc}{A A'}
 vsP,ᵈ (varP x)   = refl
 vsP,ᵈ (tP $P sP) = happly (vsP,ᵈ tP) _ ⊗ vsP,ᵈ sP
 vsP,ᵈ (tP $̂P τ)  = happly (vsP,ᵈ tP) τ
+vsP,ᵈ (fP $∞ τ)  = happly (vsP,ᵈ fP) τ
 {-# REWRITE vsP,ᵈ #-}
 
 wkP,ᵈ : ∀{ℓ' ℓ Γc}{Γ Δ : Con Γc}{A}(σP : SubP Γ Δ)

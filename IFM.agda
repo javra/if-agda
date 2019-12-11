@@ -18,6 +18,7 @@ open import IFA
 ᵐt (var vvz)     (γcᵐ , αcᵐ) = αcᵐ
 ᵐt (var (vvs t)) (γcᵐ , αcᵐ) = ᵐt (var t) γcᵐ
 ᵐt (f $S τ)      γcᵐ         = ᵐt f γcᵐ τ
+ᵐt (Π∞ T f)      γcᵐ         = λ π τ → ᵐt (f τ) γcᵐ (π τ)
 
 ᵐP : ∀{ℓ' ℓ Γc} A {γc : _ᵃc {ℓ} Γc}{δc : _ᵃc {ℓ'} Γc}(γcᵐ : ᵐc Γc γc δc)
        → _ᵃP A γc → _ᵃP A δc → Set (ℓ' ⊔ ℓ)
